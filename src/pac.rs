@@ -32,56 +32,67 @@ impl PackageSystem {
 /// Downloads packages from a file.
 /// # Parameters
 /// `package_system` The **PackageSystem** for the current package manager.
-pub fn download(package_system: &mut PackageSystem) {
+pub fn download(package_system: &mut PackageSystem) -> Result<(), &'static str> {
     // get the list of packages to install
-    let packages =
-        fs::read_to_string(&package_system.packages_file).expect("Failed to read packages file.");
+    let Ok(packages) = fs::read_to_string(&package_system.packages_file) else {
+        return Err("Failed to read packages file");
+    };
     let packages: Vec<&str> = packages.lines().collect();
 
     // run the install command
-    package_system
-        .install_command
-        .args(packages)
-        .status()
-        .expect("Install command failed.");
+    match package_system.install_command.args(packages).status() {
+        Ok(_) => return Ok(()),
+        Err(_) => return Err("Install command failed"),
+    };
 }
 
 /// Gets a list of installed packages and saves the names to a file.
 /// # Parameters
 /// `package_system` The **PackageSystem** for the current package manager.
-pub fn upload(package_system: &mut PackageSystem) {
+pub fn upload(package_system: &mut PackageSystem) -> Result<(), &'static str> {
     // get a list of installed packages from the system
-    let packages = String::from_utf8(
-        package_system
-            .list_command
-            .output()
-            .expect("List command failed.")
-            .stdout,
-    )
-    .expect("Failed to convert to string.");
+    let Ok(packages) = String::from_utf8(
+        match package_system.list_command.output() {
+            Ok(output) => output,
+            Err(_) => return Err("Failed to run package list command"),
+        }
+        .stdout,
+    ) else {
+        return Err("Unable to convert package list to string");
+    };
     let packages: Vec<&str> = packages.lines().collect();
 
     // get a list of excluded packages
-    let excluded_packages = fs::read_to_string(&package_system.excluded_packages_file)
-        .expect("Failed to open excluded packages file.");
+    let Ok(excluded_packages) = fs::read_to_string(&package_system.excluded_packages_file) else {
+        return Err("Failed to open excluded packages file");
+    };
 
     // write to the packages file
-    let packages_file =
-        File::create(&package_system.packages_file).expect("Failed to create packages file.");
+    let Ok(packages_file) = File::create(&package_system.packages_file) else {
+        return Err("Failed to create or truncate packages file");
+    };
     let mut packages_file = LineWriter::new(packages_file);
     for package in packages {
         if !excluded_packages.contains(&package) {
-            writeln!(packages_file, "{}", package).expect("Failed to write to packages file.");
+            if let Err(_) = writeln!(packages_file, "{}", package) {
+                return Err("Failed to write to packages file");
+            }
         }
     }
+    return Ok(()); // if we made it here we succeeded!
 }
 
 /// Runs `download()` followed by `upload()`.
 /// # Parameters
 /// `package_system` The **PackageSystem** for the current package manager.
-pub fn sync(package_system: &mut PackageSystem) {
-    download(package_system);
-    upload(package_system);
+pub fn sync(package_system: &mut PackageSystem) -> Result<(), &'static str> {
+    if let Err(message) = download(package_system) {
+        return Err(message);
+    }
+    if let Err(message) = upload(package_system) {
+        return Err(message);
+    }
+    return Ok(());
 } // does not need a test because it calls tested functions
 
 // exclude(excluded_packages_file)

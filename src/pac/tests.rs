@@ -5,9 +5,9 @@ const TEST_PACKAGE2: &str = "nano";
 
 fn set_up_file(name: &str, lines: &[&str]) -> PathBuf {
     let path = PathBuf::from(name);
-    let mut file = File::create(&path).expect("Failed to create file");
+    let mut file = File::create(&path).unwrap();
     for line in lines {
-        writeln!(&mut file, "{}", line).expect("Failed to write line");
+        writeln!(&mut file, "{}", line).unwrap();
     }
     return path;
 }
@@ -19,14 +19,8 @@ fn clean_up_files(paths: &[PathBuf]) {
 }
 
 fn ensure_package_presence(packages: &[&str]) {
-    let installed_packages = String::from_utf8(
-        Command::new("pacman")
-            .arg("-Qqen")
-            .output()
-            .expect("Failed to run command")
-            .stdout,
-    )
-    .expect("Failed to convert to vector");
+    let installed_packages =
+        String::from_utf8(Command::new("pacman").arg("-Qqen").output().unwrap().stdout).unwrap();
     let installed_packages: Vec<&str> = installed_packages.lines().collect();
 
     for package in packages {
@@ -50,14 +44,14 @@ mod download {
         let mut install_command = Command::new("pacman");
         install_command.arg("-S");
         let mut package_system = PackageSystem::new(
-            package_file.to_str().expect("Failed to convert to string"),
+            package_file.to_str().unwrap(),
             "",
             Command::new(""),
             install_command,
         );
 
         // run the command
-        download(&mut package_system);
+        download(&mut package_system).unwrap();
 
         // cleanup
         clean_up_files(&[package_file]);
@@ -82,18 +76,16 @@ mod upload {
         list_command.arg("-Qqen");
         let mut package_system = PackageSystem::new(
             package_file,
-            excluded_packages_file
-                .to_str()
-                .expect("Failed to convert to string"),
+            excluded_packages_file.to_str().unwrap(),
             list_command,
             Command::new(""),
         );
 
         // run the command
-        upload(&mut package_system);
+        upload(&mut package_system).unwrap();
 
         // check that the exclusion functionality works
-        let contents = fs::read_to_string(package_file).expect("Failed to read file");
+        let contents = fs::read_to_string(package_file).unwrap();
         let contents: Vec<&str> = contents.lines().collect();
         if contents.contains(&TEST_PACKAGE) {
             panic!("An excluded package was not properly excluded");
