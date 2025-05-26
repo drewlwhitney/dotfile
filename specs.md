@@ -17,7 +17,7 @@ This includes
     
     - `reinclude [package(s)]` - inverse of `exclude`.
 
-    - `-w | --windows` - by default, `pac` will work with WSL packages. This option will make it use Windows applications instead by using `winget.exe`.
+    - `add [name]` - add a package manager to the package manager file. This should place in all of the required fields 
 
 - `git` - commands involving **git**
     - `init [remote URL]` - initialize a new repository in the current directory and connect it to the provided remote
