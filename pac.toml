@@ -6,7 +6,7 @@ name = "pacman"
 
 [package_managers.install_command]
 command = "sudo"
-args = ["pacman", "-S", "--needed"]
+args = ["pacman", "-S", "--needed", "--noconfirm"]
 
 [package_managers.list_command]
 command = "pacman"
@@ -23,6 +23,19 @@ args = ["-S", "--needed"]
 [package_managers.list_command]
 command = "pacman"
 args = ["-Qqm"]
+
+# entry for shitty ass package manager
+[[package_managers]]
+name = "shitty ass package manager"
+
+[package_managers.install_command]
+command = ""
+args = []
+
+[package_managers.list_command]
+command = ""
+args = []
+
 
 # entry for shitty ass package manager
 [[package_managers]]

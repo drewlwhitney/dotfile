@@ -4,7 +4,7 @@ name = "pacman"
 
 [package_managers.install_command]
 command = "sudo"
-args = ["pacman", "-S", "--needed"]
+args = ["pacman", "-S", "--needed", "--noconfirm"]
 
 [package_managers.list_command]
 command = "pacman"

@@ -131,7 +131,7 @@ impl PackageManager {
         // render the template with the package manager name
         let Ok(entry_text) = template.render(context! {NAME => name}) else {
             return Err(String::from(
-                "Could not render template (error in `minijinja`",
+                "Could not render template (error in `minijinja`)",
             ));
         };
         // append the new entry to the package manager file

@@ -14,7 +14,7 @@ mod install {
     fn works() {
         // set up install command
         let mut install_command = Command::new("sudo");
-        install_command.args(["pacman", "-S"]);
+        install_command.args(["pacman", "-S", "--noconfirm"]);
         // set up package system
         let mut package_system = PackageSystem::build(
             PackageManager::build("pacman", install_command, Command::new("")),
