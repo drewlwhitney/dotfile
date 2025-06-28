@@ -1,13 +1,29 @@
-#[cfg(test)]
-mod tests;
-
-use super::parser::toml_structs::*;
-
-use minijinja::{Environment, UndefinedBehavior, context};
 use std::ffi::OsStr;
-use std::fs::OpenOptions;
-use std::io::prelude::*;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
+
+use toml;
+
+pub mod toml_structs {
+    //! Structs used to parse **.toml** files with the `toml` crate.
+    use serde_derive::Deserialize;
+    /// A proxy for a `Command`.
+    #[derive(Deserialize)]
+    pub struct CommandProxy {
+        pub command: String,
+        pub args: Vec<String>,
+    }
+
+    /// A proxy for a `PackageManager`.
+    #[derive(Deserialize)]
+    pub struct PackageManagerProxy {
+        pub name: String,
+        pub install_command: CommandProxy,
+        pub list_command: CommandProxy,
+    }
+}
+use toml_structs::*;
 
 /// Represents a system's package manager with methods to list the installed packages and install
 /// new ones.
@@ -23,12 +39,55 @@ impl PackageManager {
     /// - `name` - The package manager's name (and associated folder name).
     /// - `install_command` - The command used to install packages.
     /// - `list_command` - The command used to list installed packages.
-    pub fn build(name: &str, install_command: Command, list_command: Command) -> PackageManager {
+    pub fn build(name: impl ToString, install_command: Command, list_command: Command) -> Self {
         PackageManager {
             name: name.to_string(),
             install_command,
             list_command,
         }
+    }
+
+    /// Build from a TOML file.
+    ///
+    /// # Errors
+    /// - The file cannot be read from.
+    /// - The file's format is invalid.
+    ///
+    /// # File Format
+    /// - `name` - the name of the package manager.
+    /// - A table called `install_command` with parameters:
+    ///     - `command` - The command to run.
+    ///     - `args` - An array of arguments to pass to the command.
+    /// - A table called `list_command` with the same parameters as `install_command`.
+    ///
+    /// ## Format Example
+    /// <pre>
+    /// name = "pacman"
+    ///
+    /// [install_command]
+    /// command = "sudo"
+    /// args = ["pacman", "-S", "--needed"]
+    ///
+    /// [list_command]
+    /// command = "pacman"
+    /// args = ["-Qqen"]
+    /// </pre>
+    pub fn from_toml(path: impl AsRef<Path>) -> Result<Self, String> {
+        // try to read the contents of the file
+        let Ok(contents) = fs::read_to_string(&path) else {
+            return Err(format!(
+                "Failed to read package manager file at {}",
+                &path.as_ref().to_string_lossy()
+            ));
+        };
+        // try to convert to a `PackageManagerProxy`
+        let Ok(proxy) = toml::from_str::<PackageManagerProxy>(&contents) else {
+            return Err(format!(
+                "Invalid package manager file: {}",
+                &path.as_ref().to_string_lossy()
+            ));
+        };
+        Ok(Self::from(proxy))
     }
 
     /// Attempt to install the provided `packages`.
@@ -64,10 +123,7 @@ impl PackageManager {
         };
         // convert the output to a String
         let Ok(output) = String::from_utf8(output.stdout) else {
-            return Err(format!(
-                "{} list command returned invalid format",
-                &self.name
-            ));
+            return Err(format!("{} list command returned invalid format", &self.name));
         };
         // convert the output to a list of Strings
         Ok(output.split_whitespace().map(str::to_string).collect())
@@ -76,73 +132,30 @@ impl PackageManager {
     /// Check if `packages` are installed.
     ///
     /// # Returns
-    /// A list of packages that were from `packages` that are not installed.
+    /// Whether all the packages in `packages` are installed.
     ///
     /// # Errors
     /// - Any errors from `list()`.
-    pub fn check_for_packages(&mut self, packages: &Vec<&str>) -> Result<Vec<String>, String> {
+    pub fn check_for_packages<'a>(
+        &mut self,
+        packages: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<bool, String> {
         let installed_packages = match self.list() {
             Ok(packages) => packages,
             Err(error_message) => return Err(error_message),
         };
+        let installed_packages = installed_packages
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<&str>>();
 
-        let mut non_installed_packages: Vec<String> = Vec::new();
         for package in packages {
-            let package = String::from(*package);
+            let package = package.as_ref();
             if !installed_packages.contains(&package) {
-                non_installed_packages.push(package);
+                return Ok(false);
             }
         }
-        Ok(non_installed_packages)
-    }
-
-    /// Add a package manager entry to the package manager file.
-    ///
-    /// # Parameters
-    /// - `package_manager_file` - The full path to the package manger file.
-    /// - `name` - The name of the package manager entry.
-    ///
-    /// # Errors
-    /// - Cannot to open the package manager file.
-    /// - Cannot parse template file, cannot load template, or cannot render template.
-    /// - Cannot write to package manager file.
-    pub fn add_package_manager(package_manager_file: &str, name: &str) -> Result<(), String> {
-        // open the package manager file in append mode
-        let Ok(mut file) = OpenOptions::new().append(true).open(package_manager_file) else {
-            return Err(format!(
-                "Could not open package manager file: {}",
-                package_manager_file
-            ));
-        };
-        // create a jinja environment
-        let mut environment = Environment::new();
-        environment.set_undefined_behavior(UndefinedBehavior::Strict); // undefined values = error
-        if let Err(_) = environment.add_template(
-            "template",
-            include_str!("../../templates/package_manager.toml"),
-        ) {
-            return Err(String::from("Could not parse template file"));
-        }
-        let Ok(template) = environment.get_template("template") else {
-            return Err(String::from(
-                "Could not load template (error with `minijinja`)",
-            ));
-        };
-        // render the template with the package manager name
-        let Ok(entry_text) = template.render(context! {NAME => name}) else {
-            return Err(String::from(
-                "Could not render template (error in `minijinja`)",
-            ));
-        };
-        // append the new entry to the package manager file
-        if let Err(_) = write!(file, "\n\n{}\n", entry_text) {
-            return Err(format!(
-                "Failed to write to package manager file: {}",
-                package_manager_file
-            ));
-        }
-
-        Ok(())
+        Ok(true)
     }
 }
 impl From<PackageManagerProxy> for PackageManager {

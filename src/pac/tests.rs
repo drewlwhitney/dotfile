@@ -1,89 +1,50 @@
 use super::*;
-use std::fs;
 
 #[cfg(test)]
-mod package_system {
+mod create_package_system {
+    // use super::super::super::package_system::PACKAGE_MANAGER_FILENAME;
     use super::*;
 
-    #[cfg(test)]
-    mod exclude {
-        use super::*;
+    #[test]
+    fn works() {
+        let test_folder = Path::new("./test_files/pac/create_package_system");
+        let correct_folder = test_folder.join("correct"); // reference folder
+        let temp_folder = test_folder.join("temp"); // where package system folder is stored
+        let name = "pacman";
+        let package_manager_folder = temp_folder.join(&name); // where the package system is stored
 
-        #[test]
-        fn works() {}
-
-        #[test]
-        fn multiple_packages() {}
-    }
-
-    #[cfg(test)]
-    mod reinclude {
-        use super::*;
-
-        #[test]
-        fn works() {}
-
-        #[test]
-        fn multiple_packages() {}
+        // create the package system
+        self::create_package_system(&temp_folder, name).unwrap();
+        // check that all files were created
+        fn read_directory(folder: impl AsRef<Path>) -> Vec<String> {
+            fs::read_dir(folder)
+                .unwrap()
+                .map(|p| {
+                    p.unwrap()
+                        .path()
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string()
+                })
+                .collect()
+        }
+        let correct_files = read_directory(&correct_folder);
+        let package_manager_files = read_directory(&package_manager_folder);
+        for file in &correct_files {
+            assert!(package_manager_files.contains(file), "Missing file: {}", file);
+        }
+        // check the contents of the package manager file
+        assert_eq!(
+            fs::read_to_string(&correct_folder.join(package_system::PACKAGE_MANAGER_FILENAME))
+                .unwrap(),
+            fs::read_to_string(
+                &package_manager_folder.join(package_system::PACKAGE_MANAGER_FILENAME)
+            )
+            .unwrap()
+        );
+        // cleanup
+        fs::remove_dir_all(&temp_folder).unwrap();
     }
 }
-
-// #[cfg(test)]
-// mod exclude {
-//     use super::*;
-
-//     #[test]
-//     fn works() {
-//         let filename = "excluded.txt";
-//         // set up file
-//         let excluded_packages_file = set_up_file(filename, &[TEST_PACKAGE]);
-
-//         // run the command
-//         exclude(&excluded_packages_file, &vec![TEST_PACKAGE2]);
-
-//         // make sure it works
-//         let contents =
-//             fs::read_to_string(&excluded_packages_file).expect("Failed to read from file");
-//         let contents: Vec<&str> = contents.lines().collect();
-//         if !contents.contains(&TEST_PACKAGE2) {
-//             panic!("The package was not excluded");
-//         }
-
-//         //
-// -----------------------------------------------------------------------------------------
-
-//         let excluded_packages_file = set_up_file(filename, &[TEST_PACKAGE, TEST_PACKAGE2]);
-//         let excluded_packages = vec![TEST_PACKAGE];
-//         exclude(&excluded_packages_file, &excluded_packages);
-
-//         let contents = fs::read_to_string(&excluded_packages_file).unwrap();
-//         let contents: Vec<&str> = contents.lines().collect();
-
-//         for i in 0..contents.len() {
-//             if excluded_packages[i] != contents[i] {
-//                 panic!("File contents were changed");
-//             }
-//         }
-
-//         // cleanup
-//         clean_up_files(&[excluded_packages_file]);
-//     }
-
-//     #[test]
-//     fn multiple_packages() {
-//         let excluded_packages_file = set_up_file("excluded.txt", &[]);
-//         let excluded_packages = vec![TEST_PACKAGE, TEST_PACKAGE2];
-
-//         exclude(&excluded_packages_file, &excluded_packages);
-
-//         let contents = fs::read_to_string(&excluded_packages_file).unwrap();
-//         let contents: Vec<&str> = contents.lines().collect();
-//         for package in excluded_packages {
-//             if !contents.contains(&package) {
-//                 panic!("A package was not excluded")
-//             }
-//         }
-
-//         clean_up_files(&[excluded_packages_file]);
-//     }
-// }

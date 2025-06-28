@@ -1,0 +1,9 @@
+name = "yay"
+
+[install_command]
+command = "yay"
+args = ["-S", "--needed"]
+
+[list_command]
+command = "pacman"
+args = ["-Qqm"]

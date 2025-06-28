@@ -1,143 +1,80 @@
-pub mod package_manager;
-pub mod parser;
-use package_manager::*;
+use std::fs::{self, File};
+use std::io::prelude::*;
+use std::path::Path;
+
+use minijinja::{Environment, UndefinedBehavior, context};
 
 #[cfg(test)]
 mod tests;
 
-use std::fs::File;
-use std::io::{self, BufReader};
-use std::io::{LineWriter, prelude::*};
-use std::path::{Path, PathBuf};
+mod package_manager;
+mod package_system;
+pub mod parser;
+pub use package_system::PackageSystem;
+pub use parser::*;
 
-const PACKAGES_FILENAME: &str = "installed_packages.txt";
-const EXCLUDED_PACKAGES_FILENAME: &str = "excluded_packages.txt";
-
-// Contains a `PackageManager` and the folders that store package information.
-pub struct PackageSystem {
-    pub package_manager: PackageManager,
-    pub packages_file: PathBuf,
-    pub excluded_packages_file: PathBuf,
-}
-impl PackageSystem {
-    /// Build a new `PackageSystem`.
-    ///
-    /// # Parameters
-    /// - `package_manager` - The `PackageManager` to be used by the package system.
-    /// - `folder` - The full path to the package system's directory.
-    pub fn build(package_manager: PackageManager, folder: &str) -> Self {
-        PackageSystem {
-            packages_file: PathBuf::from(folder).join(PACKAGES_FILENAME),
-            excluded_packages_file: PathBuf::from(folder).join(EXCLUDED_PACKAGES_FILENAME),
-            package_manager: package_manager,
-        }
-    }
-
-    /// Attempt to install packages from the package file.
-    ///
-    /// # Errors
-    /// - The packages file could not be read.
-    /// - The install command failed.
-    pub fn install(&mut self) -> Result<&mut Self, String> {
-        let Ok(packages) = read_file_to_vector(&self.packages_file) else {
-            return Err(format!(
-                "Failed to read packages file: {}",
-                self.packages_file.to_string_lossy()
-            ));
-        };
-        if let Err(error_message) = self.package_manager.install(&packages) {
-            return Err(error_message);
-        } else {
-            println!("Successfully installed packages!");
-        }
-
-        Ok(self)
-    }
-
-    /// Upload a list of installed packages to the packages file, excluding packages in the excluded
-    /// packages file.
-    ///
-    /// # Errors
-    /// - The list command failed.
-    /// - The excluded packages file could not be read.
-    /// - The packages file could not be created or truncated.
-    /// - The packages file could not be written to.
-    pub fn upload(&mut self) -> Result<&mut Self, String> {
-        // get the list of installed packages
-        let installed_packages = match self.package_manager.list() {
-            Ok(package_list) => package_list,
-            Err(error_message) => return Err(error_message),
-        };
-        // get the list of excluded packages
-        let Ok(excluded_packages) = read_file_to_vector(&self.excluded_packages_file) else {
-            return Err(format!(
-                "Failed to read excluded packages file: {}",
-                &self.excluded_packages_file.to_string_lossy()
-            ));
-        };
-        // create/truncate the packages file
-        let mut packages_file = match File::create(&self.packages_file) {
-            Ok(file) => LineWriter::new(file),
-            _ => {
-                return Err(format!(
-                    "Failed to create or truncate packages file: {}",
-                    &self.packages_file.to_string_lossy()
-                ));
-            }
-        };
-        // write the updated package list to the file, excluding any
-        for package in installed_packages {
-            // if the package should not be excluded
-            if !excluded_packages.contains(&package) {
-                if let Err(_) = writeln!(packages_file, "{}", package) {
-                    return Err(format!(
-                        "Failed to write to packages file: {}",
-                        &self.packages_file.to_string_lossy()
-                    ));
-                }
-            }
-        }
-
-        Ok(self)
-    }
-
-    /// Calls `install()` followed by `upload()`.
-    pub fn sync(&mut self) -> Result<&mut Self, String> {
-        if let Err(error_message) = self.install() {
-            return Err(error_message);
-        }
-        if let Err(error_message) = self.upload() {
-            return Err(error_message);
-        }
-        return Ok(self);
-    }
-
-    /// Exclude packages from `upload()`. Warns the user if any packages that are about to be
-    /// excluded are not installed.
-    ///
-    /// # Errors
-    /// - Any errors from `PackageManager.list()`.
-    pub fn exclude(&mut self) -> Result<&mut Self, String> {
-        Ok(self)
-    }
-
-    /// Reinclude packages that were previously excluded. Warns the user if any packages were not
-    /// excluded or are not installed.
-    ///
-    /// # Errors
-    /// - Any errors from `PackageManager.list()`.
-    pub fn reinclude(&mut self) -> Result<&mut Self, String> {
-        Ok(self)
-    }
-}
-
-/// Read a file into a newline-separated `Vec` of `String`s.
+/// Create a new package system in `folder`.
 ///
-/// Parameters
-/// - `file` - The file to read from.
+/// # Parameters
+/// - `package_systems_folder` - The full path to the package systems folder.
+/// - `name` - The name of the new package manager.
 ///
-/// Errors
-/// The file cannot be read.
-fn read_file_to_vector(file: &impl AsRef<Path>) -> io::Result<Vec<String>> {
-    BufReader::new(File::open(file)?).lines().collect()
+/// # Errors
+/// - Cannot create the package system folder.
+/// - Cannot create any package system files.
+/// - The `minijinja` template failed to render (should not happen and is a bug if it does).
+/// - Cannot write to package manager file.
+pub fn create_package_system(folder: impl AsRef<Path>, name: &str) -> Result<(), String> {
+    let folder = Path::new(folder.as_ref()).join(name);
+    // create the package system folder
+    if let Err(_) = fs::create_dir_all(&folder) {
+        return Err(format!(
+            "Could not create package system folder: {}",
+            folder.to_string_lossy()
+        ));
+    };
+    // create the package files
+    for file in [
+        package_system::PACKAGES_FILENAME,
+        package_system::EXCLUDED_PACKAGES_FILENAME,
+    ] {
+        let file = folder.join(file);
+        if let Err(_) = File::create_new(&file) {
+            return Err(format!(
+                "Could not create file: {}. Maybe it already exists?",
+                &file.to_string_lossy()
+            ));
+        }
+    }
+    // create and write to the package manager file
+    let package_manager_path = folder.join(package_system::PACKAGE_MANAGER_FILENAME);
+    let Ok(mut package_manager_file) = File::create_new(&package_manager_path) else {
+        return Err(format!("Could not create package system: {}", name));
+    };
+    // create a jinja environment
+    let mut environment = Environment::new();
+    environment.set_undefined_behavior(UndefinedBehavior::Strict); // undefined values = error
+    // add and render the template file
+    let template_error = "BUG: invalid template file".to_string();
+    if let Err(_) =
+        environment.add_template("template", include_str!("../templates/package_manager.toml"))
+    {
+        return Err(template_error);
+    }
+    let Ok(template) = environment.get_template("template") else {
+        return Err(template_error);
+    };
+    // render the template with the package manager name
+    let Ok(text) = template.render(context! {NAME => name}) else {
+        return Err(template_error);
+    };
+    // write the rendered text to the package manager file
+    if let Err(_) = write!(package_manager_file, "{}\n", text) {
+        return Err(format!(
+            "Failed to write to package manager file: {}",
+            &package_manager_path.to_string_lossy()
+        ));
+    }
+
+    Ok(())
 }
