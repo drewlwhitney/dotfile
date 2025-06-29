@@ -1,2 +1,3 @@
+- Rewrite tests to use fixtures from `rstest`.
 - Write the rest of the tests for the `pac` module.
 - Implement the rest of the `pac` module.
