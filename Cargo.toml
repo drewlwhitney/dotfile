@@ -10,3 +10,8 @@ serde = "*"
 serde_derive = "*"
 itertools = "*"
 rstest = "*"
+utils = { path = "./utils" }
+
+[dev-dependencies]
+test_utils = { path = "./test_utils" }
+lazy_static = "*"

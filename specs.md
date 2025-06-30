@@ -7,17 +7,17 @@ This includes
 # Commands
 `dot` - base level command, like `git`
 - `pac` - commands involving packages. This can be customized to work with any package manager, as long as it can save packages to a file and then install from that same file.
-    - `install` - load packages from remote and install them.
+    - ~~`download` - load packages from remote and install them.~~
 
-    - `upload` - upload packages to remote.
+    - ~~`upload` - upload packages to remote.~~
 
-    - `sync` - runs `download` then `upload`.
+    - ~~`sync` - runs `download` then `upload`.~~
 
     - `exclude [package(s)]` - prevent the provided packages from being uploaded.
     
     - `reinclude [package(s)]` - inverse of `exclude`.
 
-    - `new [name]` - add a package manager to the package manager file. This should place in all of the required fields 
+    - ~~`new [name]` - add a package manager to the package manager file. This should place in all of the required fields.~~
 
 - `git` - commands involving **git**
     - `init [remote URL]` - initialize a new repository in the current directory and connect it to the provided remote
@@ -41,12 +41,12 @@ This includes
 
 - `task` - commands for working with application setup/other tasks
     - `create [name]` - add a task setup entry
-        - This creates a folder in the **setup** directory that the user can configure. You will have a `run.sh` script that gets called, but that script can do anything (i.e. starting a Python interpreter).
+        - This creates a folder in the **setup** directory that the user can configure. The configuration file will have a command entry that can do literally anything. (i.e. starting a Python interpreter to do stuff without bash).
 
     - `remove [name(s)]` - trash the provided task entry.
 
-    - `run [name(s) (optional)]` - run the application setup task associated with **name**. If **name** is not provided, run all tasks.
+    - `run [name(s) (optional)]` - run the application setup task associated with **name**. If **name** is not provided, run all tasks. When running a task, you should start the command in the task's directory.
 
-- `fullsync` - runs `pac sync` for all package managers, then `git sync`
+- `fullsync` - runs `git pull`, `pac sync` for all package managers, then `git push [commit message]`
 
 - `new-system` - this assumes you have just pulled a repository from remote and want to set up your system. Runs `pac download` for all package systems, links all files, runs `task run` with all tasks.

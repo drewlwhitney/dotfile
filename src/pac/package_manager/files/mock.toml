@@ -1,0 +1,13 @@
+[install_command]
+# this prints all provided arguments to `temp_test_file.txt`
+command = "sh"
+args = ["-c", "echo \"$@\" > temp_test_file.txt", "sh"]
+
+[list_command]
+# this just prints
+# "
+# first
+# second
+# "
+command = "printf"
+args = ["first\nsecond\n"]

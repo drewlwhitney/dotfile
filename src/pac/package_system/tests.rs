@@ -1,64 +1,43 @@
-use std::fs;
 use std::process::Command;
 
 use super::*;
 
-const TEST_PACKAGE: &str = "trash-cli";
-const TEST_PACKAGE2: &str = "nano";
-const TEST_PACKAGES: [&str; 2] = [TEST_PACKAGE, TEST_PACKAGE2];
-
-const PACKAGE_SYSTEM_FOLDER: &str = "./test_files/pac/package_system/install_upload";
-
+/// Tests the constructors.
 #[cfg(test)]
-mod install {
+mod construction {
     use super::*;
 
+    /// Tests `build()`.
     #[test]
-    #[ignore = "Requires a password"]
-    fn works() {
-        let mut package_system = PackageSystem::from_folder(PACKAGE_SYSTEM_FOLDER).unwrap();
-        // test that installation works
-        package_system.install().unwrap();
-        // check that pacman now lists trash-cli as installed
-        if !String::from_utf8(Command::new("pacman").arg("-Qqen").output().unwrap().stdout)
-            .unwrap()
-            .lines()
-            .collect::<Vec<&str>>()
-            .contains(&TEST_PACKAGE)
-        {
-            panic!("installed packages for pacman did not contain {}", TEST_PACKAGE);
-        }
+    fn build() {
+        let folder = Path::new("package_systems");
+        let package_system = PackageSystem::build(String::from("pacman"), &folder, PackageManager::build(Command::new(""), Command::new("")));
+        // make sure the packages file and excluded packages file have the correct paths
+        assert_eq!(package_system.packages_file, folder.join(super::PACKAGES_FILENAME));
+        assert_eq!(package_system.excluded_packages_file, folder.join(super::EXCLUDED_PACKAGES_FILENAME));
+    }
+
+    /// Tests `from_folder()`.
+    #[test]
+    fn from_folder() {
+        let name = "test_package_system";
+        let test_package_system_folder = Path::new(file!()).parent().unwrap().join(name);
+        let package_system = PackageSystem::from_folder(test_package_system_folder).unwrap();
+        // just need to check that the package system's name is based on the folder,
+        // everything else is already tested
+        assert_eq!(package_system.get_name(), name);
     }
 }
 
 #[cfg(test)]
-mod upload {
+mod exclude_helper {
     use super::*;
 
+    /// Tests `remove_excluded_packages()`.
     #[test]
-    fn works() {
-        // set up the package system
-        let mut package_system = PackageSystem::from_folder(PACKAGE_SYSTEM_FOLDER).unwrap();
-        // check that the test packages are installed (can't test otherwise)
-        if !package_system
-            .package_manager
-            .check_for_packages(TEST_PACKAGES)
-            .unwrap()
-        {
-            panic!("Cannot test, packages {:?} were not installed", &TEST_PACKAGES)
-        }
-        // upload
-        package_system.upload().unwrap();
-        // read the package file
-        let contents = fs::read_to_string(package_system.packages_file).unwrap();
-        let contents: Vec<&str> = contents.lines().collect();
-        // check that the file contains the test package
-        assert!(contents.contains(&TEST_PACKAGE), "{} was not uploaded", TEST_PACKAGE);
-        // check that the exclusion functionality works
-        assert!(
-            !contents.contains(&TEST_PACKAGE2),
-            "{} was uploaded but should have been excluded",
-            TEST_PACKAGE2
-        );
+    fn remove_excluded_packages() {
+        let packages = ["one", "two", "three", "four", "five"];
+        let filtered_packages = PackageSystem::remove_excluded_packages(&packages, &["two", "four"]);
+        assert_eq!(filtered_packages, &[&"one", &"three", &"five"]);
     }
 }

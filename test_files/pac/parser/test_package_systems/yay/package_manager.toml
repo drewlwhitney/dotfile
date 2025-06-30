@@ -1,9 +1,7 @@
-name = "yay"
-
 [install_command]
 command = "yay"
-args = ["-S", "--needed"]
+args = ["-S", "--needed", "--noconfirm"]
 
 [list_command]
 command = "pacman"
-args = ["-Qqm"]
+args = ["-Qqem"]

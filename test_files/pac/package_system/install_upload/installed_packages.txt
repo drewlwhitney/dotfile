@@ -1,8 +1,0 @@
-base
-github-cli
-mingw-w64-gcc
-qmk
-rustup
-trash-cli
-wget
-xdg-utils

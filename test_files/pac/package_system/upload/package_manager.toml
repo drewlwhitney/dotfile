@@ -1,9 +1,7 @@
-name = "pacman"
-
 [install_command]
 command = ""
 args = []
 
 [list_command]
-command = ""
-args = []
+command = "pacman"
+args = ["-Qqen"]

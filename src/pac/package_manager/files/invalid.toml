@@ -1,9 +1,7 @@
-name = "pacman"
-
 [install_command]
-command = "sudo"
+# missing `command`
 args = ["pacman", "-S", "--needed", "--noconfirm"]
 
 [list_command]
 command = "pacman"
-args = ["-Qqen"]
+# missing `args`

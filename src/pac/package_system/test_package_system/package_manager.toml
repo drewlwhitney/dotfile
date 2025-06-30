@@ -1,5 +1,3 @@
-name = "pacman"
-
 [install_command]
 command = "sudo"
 args = ["pacman", "-S", "--needed", "--noconfirm"]
