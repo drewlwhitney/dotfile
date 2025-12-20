@@ -6,9 +6,10 @@ use super::*;
 #[derive(Subcommand)]
 pub enum PacCommand {
     /// Install packages from a package list
-    #[command(alias = "tt")]
+    #[command(visible_alias="in")]
     Install(PackageManagerArgs),
     /// Save the package manager state
+    #[command(visible_alias="up")]
     Upload(PackageManagerArgs),
     /// `install`, then `upload`
     Sync(PackageManagerArgs),

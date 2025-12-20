@@ -1,5 +1,3 @@
-use std::env;
-
 use clap::{Parser, Subcommand};
 use dotfile::pac;
 use dotfile::pac::cli::*;
