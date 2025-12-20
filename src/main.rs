@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-use dotfile::pac;
 use dotfile::pac::cli::*;
+use dotfile::{dir, pac};
 
 /// Main CLI parser.
 #[derive(Parser)]
@@ -18,12 +18,17 @@ enum Command {
         #[command(subcommand)]
         subcommand: PacCommand,
     },
+    /// Print the location of the `dotfiles` directory
+    Dir,
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    match &cli.subcommand {
-        Command::Pac { subcommand } => pac::cli::process_command(subcommand).unwrap(),
-    };
+    if let Err(error_message) = match &cli.subcommand {
+        Command::Pac { subcommand } => pac::cli::process_command(subcommand),
+        Command::Dir => Ok(dir::print_dir()),
+    } {
+        println!("{}", error_message);
+    }
 }

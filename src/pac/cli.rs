@@ -1,18 +1,29 @@
-use clap::{Args, Parser, Subcommand};
-
-use super::*;
+use clap::{Args, Subcommand};
 
 /// `pac`-level subcommands.
 #[derive(Subcommand)]
 pub enum PacCommand {
     /// Install packages from a package list
-    #[command(visible_alias="in")]
+    #[command(visible_alias = "in")]
     Install(PackageManagerArgs),
     /// Save the package manager state
-    #[command(visible_alias="up")]
+    #[command(visible_alias = "up")]
     Upload(PackageManagerArgs),
     /// `install`, then `upload`
     Sync(PackageManagerArgs),
+    /// Exclude packages from syncing
+    #[command(visible_alias = "ex")]
+    Exclude {
+        /// Packages to exclude
+        packages: Vec<String>,
+    },
+    /// Reinclude previously excluded packages
+    #[command(visible_alias = "re")]
+    Reinclude {
+        /// Packages to reinclude
+        #[arg(required = true)]
+        packages: Vec<String>,
+    },
 }
 
 /// Package manager name.
@@ -26,6 +37,7 @@ pub struct PackageManagerArgs {
 pub fn process_command(command: &PacCommand) -> Result<(), String> {
     match command {
         PacCommand::Install(args) | PacCommand::Upload(args) | PacCommand::Sync(args) => println!("{:?}", args),
+        PacCommand::Exclude { packages } | PacCommand::Reinclude { packages } => println!("{:?}", packages),
     }
     Ok(())
 }
