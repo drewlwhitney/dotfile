@@ -15,10 +15,11 @@ impl PathRemover {
 }
 impl Drop for PathRemover {
     fn drop(&mut self) {
-        if self.path_to_remove.is_file() {
-            fs::remove_file(&self.path_to_remove).unwrap();
+        (if self.path_to_remove.is_file() {
+            fs::remove_file
         } else {
-            fs::remove_dir_all(&self.path_to_remove).unwrap();
-        }
+            fs::remove_dir_all
+        })(&self.path_to_remove)
+        .unwrap()
     }
 }

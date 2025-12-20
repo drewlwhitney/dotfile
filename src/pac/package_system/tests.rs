@@ -28,16 +28,3 @@ mod construction {
         assert_eq!(package_system.get_name(), name);
     }
 }
-
-#[cfg(test)]
-mod exclude_helper {
-    use super::*;
-
-    /// Tests `remove_excluded_packages()`.
-    #[test]
-    fn remove_excluded_packages() {
-        let packages = ["one", "two", "three", "four", "five"];
-        let filtered_packages = PackageSystem::remove_excluded_packages(&packages, &["two", "four"]);
-        assert_eq!(filtered_packages, &[&"one", &"three", &"five"]);
-    }
-}

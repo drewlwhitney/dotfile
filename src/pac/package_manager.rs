@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
@@ -57,8 +58,7 @@ impl PackageManager {
     /// - A table called `install_command` with parameters:
     ///     - `command` - The command to run.
     ///     - `args` - An array of arguments to pass to the command.
-    /// - A table called `list_command` with the same parameters as
-    ///   `install_command`.
+    /// - A table called `list_command` with the same parameters as `install_command`.
     ///
     /// ## Format Example
     /// <pre>
@@ -99,9 +99,8 @@ impl PackageManager {
     /// - The install command fails to run.
     /// - The install command runs, but returns an error code.
     //# INTEGRATION TESTED
-    pub fn install(&mut self, packages: &[impl AsRef<str>]) -> Result<&mut Self, String> {
-        self.install_command
-            .args(packages.iter().map(|s| OsStr::new(s.as_ref())).collect::<Vec<_>>());
+    pub fn install(&mut self, packages: impl IntoIterator<Item = impl AsRef<OsStr>>) -> Result<&mut Self, String> {
+        self.install_command.args(packages);
         if let Ok(status) = self.install_command.status() {
             if !status.success() {
                 return Err("Install command failed".to_string());
@@ -117,13 +116,12 @@ impl PackageManager {
     ///
     /// # Errors
     /// - The list command fails.
-    /// - The list command returns an invalid package format (i.e. not
-    ///   whitespace-separated).
+    /// - The list command returns an invalid package format (i.e. not whitespace-separated).
     //# INTEGRATION TESTED
-    pub fn list(&mut self) -> Result<Vec<String>, String> {
+    pub fn list(&mut self) -> Result<HashSet<String>, String> {
         // run the list command and capture the output
         let Ok(output) = self.list_command.output() else {
-            return Err("Failed to list packages for".to_string());
+            return Err("Failed to list packages".to_string());
         };
         // convert the output to a String
         let Ok(output) = String::from_utf8(output.stdout) else {

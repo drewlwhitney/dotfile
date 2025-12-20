@@ -1,18 +1,15 @@
 //! Integration tests for the `pac` module.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
+use std::sync::LazyLock;
 
 use dotfile::pac::*;
-use lazy_static::lazy_static;
 use rstest::*;
 use test_utils::{self, PathRemover};
-use utils;
 
-lazy_static! {
-    static ref PAC_TEST_FILES_FOLDER: PathBuf = PathBuf::from("test_files/pac");
-}
+static PAC_TEST_FILES_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| PathBuf::from("test_files/pac"));
 
 /// Tests the `package_manager` module.
 #[cfg(test)]
@@ -96,9 +93,7 @@ mod package_manager_tests {
 mod package_system_tests {
     use super::*;
 
-    lazy_static! {
-        static ref TEST_FILES_FOLDER: PathBuf = PAC_TEST_FILES_FOLDER.join("package_system");
-    }
+    static TEST_FILES_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| PAC_TEST_FILES_FOLDER.join("package_system"));
 
     /// Tests `PackageSystem.upload()`.
     #[test]
@@ -109,17 +104,17 @@ mod package_system_tests {
         assert!(test_utils::check_installed(&excluded_packages), "Test excluded packages not installed: {:?}", &excluded_packages);
         // setup
         let folder = TEST_FILES_FOLDER.join("upload");
-        let installed_packages_file = folder.join("installed_packages.txt");
+        let installed_packages_file = folder.join("installed-packages.txt");
         let _file_remover = PathRemover::new(&installed_packages_file);
         let mut package_system = PackageSystem::from_folder(folder).unwrap();
         // upload
         package_system.upload().unwrap();
         // get the packages the package system uploaded
-        let uploaded_packages = utils::read_file_to_vector(&installed_packages_file).unwrap();
+        let uploaded_packages = utils::read_file_to_hashset(&installed_packages_file).unwrap();
         // check that all uploaded packages are actually installed
-        assert!(utils::contains_all(&test_utils::list_installed(), &uploaded_packages));
+        assert!(test_utils::contains_all(&test_utils::list_installed().iter().collect::<Vec<_>>(), &uploaded_packages.iter().collect::<Vec<_>>()));
         // check that the excluded packages were not uploaded
-        assert!(utils::contains_none(&uploaded_packages.iter().map(String::as_str).collect::<Vec<_>>(), &excluded_packages));
+        assert!(test_utils::contains_none(&uploaded_packages.iter().map(String::as_str).collect::<Vec<_>>(), &excluded_packages));
     }
 
     /// Tests `new_package_system()`.
@@ -134,14 +129,14 @@ mod package_system_tests {
         let package_system_folder = temp_folder.join(name);
         new_package_system(&temp_folder, name).unwrap(); // run the command
         // make sure the package manager contents are correct
-        let correct_package_manager_contents = include_str!("../templates/package_manager.toml");
+        let correct_package_manager_contents = include_str!("../templates/package-manager.toml");
         assert_eq!(
             fs::read_to_string(package_system_folder.join(package_system::PACKAGE_MANAGER_FILENAME)).unwrap(),
             correct_package_manager_contents
         );
         // ensure the installed packages file and excluded packages file were created
-        assert!(Path::exists(&package_system_folder.join(package_system::PACKAGES_FILENAME)));
-        assert!(Path::exists(&package_system_folder.join(package_system::EXCLUDED_PACKAGES_FILENAME)));
+        assert!(&package_system_folder.join(package_system::PACKAGES_FILENAME).exists());
+        assert!(&package_system_folder.join(package_system::EXCLUDED_PACKAGES_FILENAME).exists());
     }
 }
 

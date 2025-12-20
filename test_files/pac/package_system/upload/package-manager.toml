@@ -1,0 +1,7 @@
+[install_command]
+command = ""
+args = []
+
+[list_command]
+command = "pacman"
+args = ["-Qqen"]

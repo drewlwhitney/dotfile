@@ -10,9 +10,9 @@ use super::package_manager::*;
 #[cfg(test)]
 mod tests;
 
-pub const PACKAGE_MANAGER_FILENAME: &str = "package_manager.toml";
-pub const PACKAGES_FILENAME: &str = "installed_packages.txt";
-pub const EXCLUDED_PACKAGES_FILENAME: &str = "excluded_packages.txt";
+pub const PACKAGE_MANAGER_FILENAME: &str = "package-manager.toml";
+pub const PACKAGES_FILENAME: &str = "installed-packages.txt";
+pub const EXCLUDED_PACKAGES_FILENAME: &str = "excluded-packages.txt";
 
 // Contains a `PackageManager` and the files that store package information.
 pub struct PackageSystem {
@@ -25,8 +25,7 @@ impl PackageSystem {
     /// Build a new `PackageSystem`.
     /// # Parameters
     /// - `name` - The package system's name.
-    /// - `package_manager` - The `PackageManager` to be used by the package
-    ///   system.
+    /// - `package_manager` - The `PackageManager` to be used by the package system.
     /// - `folder` - The full path to the package system's directory.
     //# UNIT TESTED
     pub fn build(name: String, folder: impl AsRef<Path>, package_manager: PackageManager) -> Self {
@@ -80,7 +79,7 @@ impl PackageSystem {
     /// - The install command failed.
     //# HELPERS TESTED
     pub fn install(&mut self) -> Result<&mut Self, String> {
-        let Ok(packages) = utils::read_file_to_vector(&self.packages_file) else {
+        let Ok(packages) = utils::read_file_to_hashset(&self.packages_file) else {
             return Err(format!("Failed to read packages file: {}", self.packages_file.to_string_lossy()));
         };
         self.package_manager.install(&packages)?;
@@ -100,7 +99,7 @@ impl PackageSystem {
     pub fn upload(&mut self) -> Result<&mut Self, String> {
         let installed_packages = self.package_manager.list()?;
         // get the list of excluded packages
-        let Ok(excluded_packages) = utils::read_file_to_vector(&self.excluded_packages_file) else {
+        let Ok(excluded_packages) = utils::read_file_to_hashset(&self.excluded_packages_file) else {
             return Err(format!("Failed to read excluded packages file: {}", &self.excluded_packages_file.to_string_lossy()));
         };
         // create/truncate the packages file
@@ -110,24 +109,14 @@ impl PackageSystem {
             return Err(format!("Failed to create or truncate packages file: {}", &self.packages_file.to_string_lossy()));
         };
         // exclude packages
-        let packages = Self::remove_excluded_packages(&installed_packages, &excluded_packages);
         // write the updated package list to the file
-        for package in packages {
+        for package in installed_packages.difference(&excluded_packages) {
             if writeln!(packages_file, "{}", package).is_err() {
                 return Err(format!("Failed to write to packages file: {}", &self.packages_file.to_string_lossy()));
             }
         }
 
         Ok(self)
-    }
-
-    /// Helper function to remove excluded packages from a list of packages.
-    //# UNIT TESTED
-    fn remove_excluded_packages<'a, T: AsRef<str> + PartialEq>(packages: &'a [T], packages_to_exclude: &[T]) -> Vec<&'a T> {
-        packages
-            .iter()
-            .filter(|package| !packages_to_exclude.contains(&package))
-            .collect::<Vec<_>>()
     }
 
     /// Calls `install()` followed by `upload()`.
@@ -170,8 +159,7 @@ impl PackageSystem {
 /// Create a new package system in `folder`.
 ///
 /// # Parameters
-/// - `package_systems_folder` - The full path to the folder to create the
-///   package system folder in.
+/// - `package_systems_folder` - The full path to the folder to create the package system folder in.
 /// - `name` - The name of the new package manager.
 ///
 /// # Errors
@@ -183,29 +171,29 @@ pub fn new_package_system(folder: impl AsRef<Path>, name: impl AsRef<str>) -> Re
     let folder = Path::new(folder.as_ref()).join(name);
     // check for an already-existing package system folder
     if folder.exists() {
-        return Err(format!("Package system {} already exists", name));
+        return Err(format!("Package system `{}` already exists", name));
     }
     // create the package system folder
     if fs::create_dir_all(&folder).is_err() {
-        return Err(format!("Could not create package system folder: {}", folder.to_string_lossy()));
+        return Err(format!("Could not create package system folder `{}`", folder.to_string_lossy()));
     };
     // create the package files
     for file in [PACKAGES_FILENAME, EXCLUDED_PACKAGES_FILENAME] {
         let file = folder.join(file);
         if File::create_new(&file).is_err() {
-            return Err(format!("Could not create package file: {}. Maybe it already exists?", &file.to_string_lossy()));
+            return Err(format!("Could not create package file `{}`. Maybe it already exists?", &file.to_string_lossy()));
         }
     }
     // create the package manager file
     let package_manager_path = folder.join(PACKAGE_MANAGER_FILENAME);
     let Ok(package_manager_file) = File::create_new(&package_manager_path) else {
-        return Err(format!("Could not create package manager file: {}. Maybe it already exists?", &package_manager_path.to_string_lossy()));
+        return Err(format!("Could not create package manager file `{}`. Maybe it already exists?", &package_manager_path.to_string_lossy()));
     };
     // write to it
-    if write!(&package_manager_file, include_str!("../../templates/package_manager.toml")).is_err() {
-        println!("Failed to write template for package manager file: {}.", &package_manager_path.to_string_lossy())
+    if write!(&package_manager_file, include_str!("../../templates/package-manager.toml")).is_err() {
+        println!("Failed to write template for package manager file `{}`.", &package_manager_path.to_string_lossy())
     }
 
-    println!("Created package system {}", name);
+    println!("Created package system `{}`", name);
     Ok(())
 }
