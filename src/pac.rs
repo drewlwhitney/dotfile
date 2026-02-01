@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 pub use package_manager::PackageManager;
-pub use package_system::{PackageSystem, new_package_system};
+pub use package_system::{EXCLUDED_PACKAGES_FILENAME, PACKAGE_MANAGER_FILENAME, PACKAGES_FILENAME, PackageSystem, new_package_system};
 pub use parser::*;
 
 use super::CONFIG_DIR;

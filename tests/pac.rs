@@ -95,6 +95,35 @@ mod package_system_tests {
 
     static TEST_FILES_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| PAC_TEST_FILES_FOLDER.join("package_system"));
 
+    /// Tests for functions that read files.
+    #[cfg(test)]
+    mod file_read_tests {
+        use super::*;
+
+        static TEST_FILES_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| TEST_FILES_FOLDER.join("read"));
+        static EXISTS_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| TEST_FILES_FOLDER.join("exists"));
+        static DOES_NOT_EXIST_FOLDER: LazyLock<PathBuf> = LazyLock::new(|| TEST_FILES_FOLDER.join("does-not-exist"));
+
+        /// Tests `PackageSystem.read_packages_file()`.
+        #[rstest]
+        #[ignore = "must be run single-threaded"]
+        fn read_packages_file(#[from(package_systems)] (exists_package_system, does_not_exist_package_system): (PackageSystem, PackageSystem)) {
+            // test the case where the file exists
+            let packages_file = EXISTS_FOLDER.join(PACKAGES_FILENAME);
+        }
+
+        /// Tests `PackageSystem.read_excluded_packages_file()`.
+        #[rstest]
+        #[ignore = "must be run single-threaded"]
+        fn read_excluded_packages_file() {}
+
+        // Creates two package systems: one for the `exists` folder and one for the `does-not-exist` folder.
+        #[fixture]
+        fn package_systems() -> (PackageSystem, PackageSystem) {
+            (PackageSystem::from_folder(EXISTS_FOLDER.as_path()).unwrap(), PackageSystem::from_folder(DOES_NOT_EXIST_FOLDER.as_path()).unwrap())
+        }
+    }
+
     /// Tests `PackageSystem.upload()`.
     #[test]
     #[ignore = "must be run single-threaded"]
@@ -104,7 +133,7 @@ mod package_system_tests {
         assert!(test_utils::check_installed(&excluded_packages), "Test excluded packages not installed: {:?}", &excluded_packages);
         // setup
         let folder = TEST_FILES_FOLDER.join("upload");
-        let installed_packages_file = folder.join("installed-packages.txt");
+        let installed_packages_file = folder.join(PACKAGES_FILENAME);
         let _file_remover = PathRemover::new(&installed_packages_file);
         let mut package_system = PackageSystem::from_folder(folder).unwrap();
         // upload
@@ -154,8 +183,8 @@ mod parser_tests {
 
         // verify pacman is correct
         let pacman = &package_managers.get("pacman").unwrap();
-        assert_eq!(pacman.get_name(), "pacman");
-        let pacman_manager = pacman.get_package_manager();
+        assert_eq!(pacman.name(), "pacman");
+        let pacman_manager = pacman.package_manager();
         assert_eq!(pacman_manager.install_command.get_program().to_str().unwrap(), "sudo");
         assert_eq!(pacman_manager.install_command.get_args().collect::<Vec<_>>(), vec!["pacman", "-S", "--needed", "--noconfirm"]);
         assert_eq!(pacman_manager.list_command.get_program().to_str().unwrap(), "pacman");
@@ -163,11 +192,13 @@ mod parser_tests {
 
         // verify yay is correct
         let yay = &package_managers.get("yay").unwrap();
-        assert_eq!(yay.get_name(), "yay");
-        let yay_manager = yay.get_package_manager();
+        assert_eq!(yay.name(), "yay");
+        let yay_manager = yay.package_manager();
         assert_eq!(yay_manager.install_command.get_program().to_str().unwrap(), "yay");
         assert_eq!(yay_manager.install_command.get_args().collect::<Vec<_>>(), vec!["-S", "--needed", "--noconfirm"]);
         assert_eq!(yay_manager.list_command.get_program().to_str().unwrap(), "pacman");
         assert_eq!(yay_manager.list_command.get_args().collect::<Vec<_>>(), vec!["-Qqem"]);
+
+        assert!(yay == yay);
     }
 }

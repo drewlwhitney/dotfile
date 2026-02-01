@@ -1,6 +1,7 @@
-use std::fs::{self, File};
-use std::io::LineWriter;
+use std::collections::HashSet;
+use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
+use std::io::{ErrorKind, LineWriter};
 use std::path::{Path, PathBuf};
 
 use utils;
@@ -70,7 +71,16 @@ impl PackageSystem {
             }
         };
 
-        Ok(Self::build(name, &folder, package_manager))
+        Ok(Self::build(name, folder, package_manager))
+    }
+
+    /// Read this package system's packages file. If the file does not exist, create it.
+    ///
+    /// ## Errors
+    /// - The file des not exist.
+    /// - The file cannot be read.
+    fn read_packages_file(&self) -> Result<HashSet<String>, String> {
+        todo!()
     }
 
     /// Attempt to install packages from the package file.
@@ -79,8 +89,22 @@ impl PackageSystem {
     /// - The install command failed.
     //# HELPERS TESTED
     pub fn install(&mut self) -> Result<&mut Self, String> {
-        let Ok(packages) = utils::read_file_to_hashset(&self.packages_file) else {
-            return Err(format!("Failed to read packages file: {}", self.packages_file.to_string_lossy()));
+        let packages = match utils::read_file_to_hashset(&self.packages_file) {
+            Ok(v) => v,
+            Err(e) => {
+                if e.kind() == ErrorKind::NotFound {
+                    println!("Packages file does not exist, creating");
+                    if let Err(e) = OpenOptions::new().write(true).create_new(true).open(&self.packages_file) {
+                        return Err(format!(
+                            "Failed to create packages file `{}`: {}",
+                            &self.packages_file.to_string_lossy().to_string(),
+                            e.to_string()
+                        ));
+                    }
+                    return Ok(self);
+                }
+                return Err(format!("Failed to read packages file: {}", self.packages_file.to_string_lossy()));
+            }
         };
         self.package_manager.install(&packages)?;
         println!("Successfully installed packages!");
@@ -100,22 +124,21 @@ impl PackageSystem {
         let installed_packages = self.package_manager.list()?;
         // get the list of excluded packages
         let Ok(excluded_packages) = utils::read_file_to_hashset(&self.excluded_packages_file) else {
-            return Err(format!("Failed to read excluded packages file: {}", &self.excluded_packages_file.to_string_lossy()));
+            return Err(format!("Failed to read excluded packages file `{}`", &self.excluded_packages_file.to_string_lossy()));
         };
         // create/truncate the packages file
         let mut packages_file = if let Ok(file) = File::create(&self.packages_file) {
             LineWriter::new(file)
         } else {
-            return Err(format!("Failed to create or truncate packages file: {}", &self.packages_file.to_string_lossy()));
+            return Err(format!("Failed to create or truncate packages file `{}`", &self.packages_file.to_string_lossy()));
         };
         // exclude packages
         // write the updated package list to the file
         for package in installed_packages.difference(&excluded_packages) {
             if writeln!(packages_file, "{}", package).is_err() {
-                return Err(format!("Failed to write to packages file: {}", &self.packages_file.to_string_lossy()));
+                return Err(format!("Failed to write to packages file `{}`", &self.packages_file.to_string_lossy()));
             }
         }
-
         Ok(self)
     }
 
@@ -146,13 +169,23 @@ impl PackageSystem {
     }
 
     /// Get the package system's name.
-    pub fn get_name(&self) -> &String {
+    pub fn name(&self) -> &String {
         &self.name
     }
 
     /// Get the package manager.
-    pub fn get_package_manager(&self) -> &PackageManager {
-        return &self.package_manager;
+    pub fn package_manager(&self) -> &PackageManager {
+        &self.package_manager
+    }
+}
+
+#[cfg(debug_assertions)]
+impl PartialEq for PackageSystem {
+    fn eq(&self, other: &Self) -> bool {
+        self.package_manager == other.package_manager
+            && self.packages_file == other.packages_file
+            && self.excluded_packages_file == other.excluded_packages_file
+            && self.name == other.name
     }
 }
 

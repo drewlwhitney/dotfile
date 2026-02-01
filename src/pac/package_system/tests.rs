@@ -25,6 +25,6 @@ mod construction {
         let package_system = PackageSystem::from_folder(test_package_system_folder).unwrap();
         // just need to check that the package system's name is based on the folder,
         // everything else is already tested
-        assert_eq!(package_system.get_name(), name);
+        assert_eq!(package_system.name(), name);
     }
 }

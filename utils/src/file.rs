@@ -11,6 +11,7 @@ mod tests;
 ///
 /// ## Errors
 /// - The file cannot be read.
+//# TESTED
 pub fn read_file_to_hashset(path: &impl AsRef<Path>) -> io::Result<HashSet<String>> {
     let mut lines = BufReader::new(File::open(path)?).lines().collect::<io::Result<HashSet<String>>>()?;
     lines.remove("");

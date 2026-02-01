@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
+use dotfile::dir;
 use dotfile::pac::cli::*;
-use dotfile::{dir, pac};
+use dotfile::pac::{self, *};
 
 /// Main CLI parser.
 #[derive(Parser)]

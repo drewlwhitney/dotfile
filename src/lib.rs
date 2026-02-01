@@ -1,4 +1,5 @@
 pub mod dir;
+pub mod file;
 pub mod pac;
 
 use std::path::PathBuf;

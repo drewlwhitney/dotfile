@@ -30,7 +30,7 @@ pub fn package_systems_from_folder(folder: impl AsRef<Path>) -> Result<HashMap<S
         if package_system_path.is_dir() {
             // try to create a package system from the current folder
             let package_system = PackageSystem::from_folder(&package_system_path)?;
-            package_systems.insert(package_system.get_name().to_owned(), package_system);
+            package_systems.insert(package_system.name().to_owned(), package_system);
         }
     }
     Ok(package_systems)

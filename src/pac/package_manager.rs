@@ -90,7 +90,7 @@ impl PackageManager {
             // return the invalid file contents on failure
             return Err(format!("Invalid package manager file contents:\n{}", toml_string.to_string()));
         };
-        Ok(Self::from(proxy))
+        Ok(proxy.into())
     }
 
     /// Attempt to install the provided `packages`.
@@ -131,11 +131,23 @@ impl PackageManager {
         Ok(output.split_whitespace().map(String::from).collect())
     }
 }
+
 impl From<PackageManagerProxy> for PackageManager {
     fn from(proxy: PackageManagerProxy) -> Self {
         let mut package_manager = Self::build(Command::new(proxy.install_command.command), Command::new(proxy.list_command.command));
         package_manager.install_command.args(proxy.install_command.args);
         package_manager.list_command.args(proxy.list_command.args);
         package_manager
+    }
+}
+
+#[cfg(test)]
+impl PartialEq for PackageManager {
+    fn eq(&self, other: &Self) -> bool {
+        // equal if the commands are equal
+        self.install_command.get_args().collect::<Vec<_>>() == other.install_command.get_args().collect::<Vec<_>>()
+            && self.list_command.get_args().collect::<Vec<_>>() == other.list_command.get_args().collect::<Vec<_>>()
+            && self.install_command.get_program() == other.install_command.get_program()
+            && self.list_command.get_program() == other.install_command.get_program()
     }
 }
